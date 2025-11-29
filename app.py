@@ -86,7 +86,8 @@ def get_carriers_with_status():
                 'localized_name': c[5],
                 'year_out': c[6],
                 'director': c[7],
-                'genres': genres
+                'genres': genres,
+                'film_id': film_id
             })
 
         return carriers
@@ -165,14 +166,16 @@ def api_user_take_carrier(carrier_id):
 
         # Проверяем, доступен ли носитель
         cursor.execute("""
-            SELECT status FROM carriers WHERE id = %s
+            SELECT status, film_id FROM carriers WHERE id = %s
         """, (carrier_id,))
-        carrier_status = cursor.fetchone()
+        result = cursor.fetchone()
         
-        if not carrier_status:
+        if not result:
             return jsonify({'success': False, 'message': 'Носитель не найден'}), 404
             
-        if carrier_status[0] != 'Доступен':
+        carrier_status, film_id = result
+        
+        if carrier_status != 'Доступен':
             return jsonify({'success': False, 'message': 'Носитель недоступен'}), 400
         
         # Проверяем, не выдан ли уже носитель
@@ -182,6 +185,14 @@ def api_user_take_carrier(carrier_id):
         """, (carrier_id,))
         if cursor.fetchone():
             return jsonify({'success': False, 'message': 'Носитель уже выдан'}), 400
+        
+        # Проверяем, нет ли активных бронирований для этого фильма
+        cursor.execute("""
+            SELECT id FROM reservations 
+            WHERE film_id = %s AND status = 'Подтверждено' AND period @> CURRENT_DATE
+        """, (film_id,))
+        if cursor.fetchone():
+            return jsonify({'success': False, 'message': 'Фильм забронирован'}), 400
         
         # Создаём выдачу
         given_at = datetime.now().date()
@@ -234,7 +245,7 @@ def admin_page():
         # Носители
         cursor.execute("""
             SELECT c.id, c.type, c.condition, c.price, c.status,
-                   f.localized_name, d.full_name
+                   f.localized_name, d.full_name, f.id as film_id
             FROM carriers c
             JOIN films f ON c.film_id = f.id
             JOIN directors d ON f.director_id = d.id
@@ -438,7 +449,18 @@ def api_delete_issue(issue_id):
     try:
         conn = db_conn(user='film_admin', pwd='admin123')
         cursor = conn.cursor()
+        
+        # Получаем carrier_id перед удалением выдачи
+        cursor.execute("SELECT carrier_id FROM issues WHERE id = %s", (issue_id,))
+        result = cursor.fetchone()
+        if result:
+            carrier_id = result[0]
+            # Обновляем статус носителя обратно на "Доступен"
+            cursor.execute("UPDATE carriers SET status = 'Доступен' WHERE id = %s", (carrier_id,))
+        
+        # Удаляем выдачу
         cursor.execute("DELETE FROM issues WHERE id = %s", (issue_id,))
+        
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -492,6 +514,132 @@ def api_delete_director(director_id):
         cursor.execute("DELETE FROM directors WHERE id = %s", (director_id,))
         conn.commit()
         return jsonify({'success': True})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# Новые API для создания записей
+@app.route('/api/admin/carriers', methods=['POST'])
+def api_create_carrier():
+    conn = None
+    try:
+        data = request.json
+        conn = db_conn(user='film_admin', pwd='admin123')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO carriers (film_id, type, condition, price, status, date_bought)
+            VALUES (%s, %s, %s, %s, 'Доступен', CURRENT_DATE)
+            RETURNING id
+        """, (data['film_id'], data['type'], data['condition'], data['price']))
+        
+        carrier_id = cursor.fetchone()[0]
+        conn.commit()
+        return jsonify({'success': True, 'id': carrier_id})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/films', methods=['POST'])
+def api_create_film():
+    conn = None
+    try:
+        data = request.json
+        conn = db_conn(user='film_admin', pwd='admin123')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO films (localized_name, year_out, director_id)
+            VALUES (%s, %s, %s)
+            RETURNING id
+        """, (data['name'], data['year'], data['director_id']))
+        
+        film_id = cursor.fetchone()[0]
+        conn.commit()
+        return jsonify({'success': True, 'id': film_id})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/readers', methods=['POST'])
+def api_create_reader():
+    conn = None
+    try:
+        data = request.json
+        conn = db_conn(user='film_admin', pwd='admin123')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO readers (fio, phone, status)
+            VALUES (%s, %s, %s)
+            RETURNING id
+        """, (data['fio'], data['phone'], data['status']))
+        
+        reader_id = cursor.fetchone()[0]
+        conn.commit()
+        return jsonify({'success': True, 'id': reader_id})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/genres', methods=['POST'])
+def api_create_genre():
+    conn = None
+    try:
+        data = request.json
+        conn = db_conn(user='film_admin', pwd='admin123')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO genres (name)
+            VALUES (%s)
+            RETURNING id
+        """, (data['name'],))
+        
+        genre_id = cursor.fetchone()[0]
+        conn.commit()
+        return jsonify({'success': True, 'id': genre_id})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/admin/directors', methods=['POST'])
+def api_create_director():
+    conn = None
+    try:
+        data = request.json
+        conn = db_conn(user='film_admin', pwd='admin123')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO directors (full_name)
+            VALUES (%s)
+            RETURNING id
+        """, (data['name'],))
+        
+        director_id = cursor.fetchone()[0]
+        conn.commit()
+        return jsonify({'success': True, 'id': director_id})
     except Exception as e:
         if conn:
             conn.rollback()
