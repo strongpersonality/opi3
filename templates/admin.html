@@ -332,4 +332,436 @@
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDirectors">
                         Режиссёры ({{ directors|length }})
                     </button>
-                </
+                </h2>
+                <div id="collapseDirectors" class="accordion-collapse collapse">
+                    <div class="accordion-body">
+                        <table class="table table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>ФИО</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="directorsTableBody">
+                                {% for director in directors %}
+                                <tr data-director-id="{{ director[0] }}">
+                                    <td>{{ director[0] }}</td>
+                                    <td><strong>{{ director[1] }}</strong></td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm edit-director-btn" data-director-id="{{ director[0] }}">Редактировать</button>
+                                        <button class="btn btn-danger btn-sm delete-director-btn" data-director-id="{{ director[0] }}">Удалить</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Общие функции для работы с API
+        function apiCall(url, method, data = null) {
+            return fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: data ? JSON.stringify(data) : null
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            });
+        }
+
+        // Загрузка данных для форм
+        function loadFormData() {
+            // Загрузка режиссёров для формы фильма
+            apiCall('/api/admin/directors', 'GET')
+                .then(directors => {
+                    const select = document.getElementById('filmDirector');
+                    select.innerHTML = '<option value="">Выберите режиссёра</option>';
+                    directors.forEach(d => {
+                        const option = document.createElement('option');
+                        option.value = d.id;
+                        option.textContent = d.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading directors:', error);
+                    alert('Ошибка загрузки режиссёров');
+                });
+
+            // Загрузка фильмов для формы носителя
+            apiCall('/api/admin/films', 'GET')
+                .then(films => {
+                    const select = document.getElementById('carrierFilm');
+                    select.innerHTML = '<option value="">Выберите фильм</option>';
+                    films.forEach(f => {
+                        const option = document.createElement('option');
+                        option.value = f.id;
+                        option.textContent = f.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading films:', error);
+                    alert('Ошибка загрузки фильмов');
+                });
+        }
+
+        // Функции для добавления записей
+        window.addFilm = function() {
+            const name = document.getElementById('filmName').value;
+            const year = document.getElementById('filmYear').value;
+            const directorId = document.getElementById('filmDirector').value;
+
+            if (!name || !year || !directorId) {
+                alert('Заполните все поля');
+                return;
+            }
+
+            const filmData = {
+                name: name,
+                year: parseInt(year),
+                director_id: parseInt(directorId),
+                genre_ids: []
+            };
+
+            apiCall('/api/admin/films', 'POST', filmData)
+                .then(data => {
+                    if (data.success) {
+                        alert('Фильм успешно добавлен');
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при добавлении фильма: ' + error.message);
+                });
+        };
+
+        window.addCarrier = function() {
+            const type = document.getElementById('carrierType').value;
+            const condition = document.getElementById('carrierCondition').value;
+            const price = document.getElementById('carrierPrice').value;
+            const filmId = document.getElementById('carrierFilm').value;
+
+            if (!type || !condition || !price || !filmId) {
+                alert('Заполните все поля');
+                return;
+            }
+
+            const carrierData = {
+                type: type,
+                condition: condition,
+                price: parseFloat(price),
+                film_id: parseInt(filmId)
+            };
+
+            apiCall('/api/admin/carriers', 'POST', carrierData)
+                .then(data => {
+                    if (data.success) {
+                        alert('Носитель успешно добавлен');
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при добавлении носителя: ' + error.message);
+                });
+        };
+
+        window.addReader = function() {
+            const fio = document.getElementById('readerFio').value;
+            const phone = document.getElementById('readerPhone').value;
+
+            if (!fio) {
+                alert('Введите ФИО пользователя');
+                return;
+            }
+
+            const readerData = {
+                fio: fio,
+                phone: phone || '',
+                reg_date: new Date().toISOString().split('T')[0],
+                status: 'Активен'
+            };
+
+            apiCall('/api/admin/readers', 'POST', readerData)
+                .then(data => {
+                    if (data.success) {
+                        alert('Пользователь успешно добавлен');
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при добавлении пользователя: ' + error.message);
+                });
+        };
+
+        window.addGenre = function() {
+            const name = document.getElementById('genreName').value;
+
+            if (!name) {
+                alert('Введите название жанра');
+                return;
+            }
+
+            const genreData = {
+                name: name
+            };
+
+            apiCall('/api/admin/genres', 'POST', genreData)
+                .then(data => {
+                    if (data.success) {
+                        alert('Жанр успешно добавлен');
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при добавлении жанра: ' + error.message);
+                });
+        };
+
+        window.addDirector = function() {
+            const name = document.getElementById('directorName').value;
+
+            if (!name) {
+                alert('Введите ФИО режиссёра');
+                return;
+            }
+
+            const directorData = {
+                name: name
+            };
+
+            apiCall('/api/admin/directors', 'POST', directorData)
+                .then(data => {
+                    if (data.success) {
+                        alert('Режиссёр успешно добавлен');
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при добавлении режиссёра: ' + error.message);
+                });
+        };
+
+        // Обработчики для удаления
+        function setupDeleteHandlers() {
+            document.querySelectorAll('.delete-film-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const filmId = this.getAttribute('data-film-id');
+                    const filmName = this.closest('tr').querySelector('td:first-child strong').textContent;
+                    if (confirm(`Вы уверены, что хотите удалить фильм "${filmName}"?`)) {
+                        deleteFilm(filmId, this);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-carrier-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const carrierId = this.getAttribute('data-carrier-id');
+                    const carrierName = this.closest('tr').querySelector('td:nth-child(2) strong').textContent;
+                    if (confirm(`Вы уверены, что хотите удалить носитель "${carrierName}"?`)) {
+                        deleteCarrier(carrierId, this);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-issue-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const issueId = this.getAttribute('data-issue-id');
+                    if (confirm('Вы уверены, что хотите удалить эту выдачу?')) {
+                        deleteIssue(issueId, this);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-reader-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const readerId = this.getAttribute('data-reader-id');
+                    const readerName = this.closest('tr').querySelector('td:nth-child(2) strong').textContent;
+                    if (confirm(`Вы уверены, что хотите удалить пользователя "${readerName}"?`)) {
+                        deleteReader(readerId, this);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-genre-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const genreId = this.getAttribute('data-genre-id');
+                    const genreName = this.closest('tr').querySelector('td:nth-child(2) strong').textContent;
+                    if (confirm(`Вы уверены, что хотите удалить жанр "${genreName}"?`)) {
+                        deleteGenre(genreId, this);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-director-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const directorId = this.getAttribute('data-director-id');
+                    const directorName = this.closest('tr').querySelector('td:nth-child(2) strong').textContent;
+                    if (confirm(`Вы уверены, что хотите удалить режиссёра "${directorName}"?`)) {
+                        deleteDirector(directorId, this);
+                    }
+                });
+            });
+        }
+
+        function deleteFilm(filmId, button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            apiCall(`/api/admin/films/${filmId}`, 'DELETE')
+                .then(data => {
+                    if (data.success) {
+                        document.querySelector(`tr[data-film-id="${filmId}"]`).remove();
+                        alert('Фильм успешно удалён');
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                        button.disabled = false;
+                        button.textContent = 'Удалить';
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при удалении: ' + error.message);
+                    button.disabled = false;
+                    button.textContent = 'Удалить';
+                });
+        }
+
+        function deleteCarrier(carrierId, button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            apiCall(`/api/admin/carriers/${carrierId}`, 'DELETE')
+                .then(data => {
+                    if (data.success) {
+                        document.querySelector(`tr[data-carrier-id="${carrierId}"]`).remove();
+                        alert('Носитель успешно удалён');
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                        button.disabled = false;
+                        button.textContent = 'Удалить';
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при удалении: ' + error.message);
+                    button.disabled = false;
+                    button.textContent = 'Удалить';
+                });
+        }
+
+        function deleteIssue(issueId, button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            apiCall(`/api/admin/issues/${issueId}`, 'DELETE')
+                .then(data => {
+                    if (data.success) {
+                        document.querySelector(`tr[data-issue-id="${issueId}"]`).remove();
+                        alert('Выдача успешно удалена');
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                        button.disabled = false;
+                        button.textContent = 'Удалить';
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при удалении: ' + error.message);
+                    button.disabled = false;
+                    button.textContent = 'Удалить';
+                });
+        }
+
+        function deleteReader(readerId, button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            apiCall(`/api/admin/readers/${readerId}`, 'DELETE')
+                .then(data => {
+                    if (data.success) {
+                        document.querySelector(`tr[data-reader-id="${readerId}"]`).remove();
+                        alert('Пользователь успешно удалён');
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                        button.disabled = false;
+                        button.textContent = 'Удалить';
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при удалении: ' + error.message);
+                    button.disabled = false;
+                    button.textContent = 'Удалить';
+                });
+        }
+
+        function deleteGenre(genreId, button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            apiCall(`/api/admin/genres/${genreId}`, 'DELETE')
+                .then(data => {
+                    if (data.success) {
+                        document.querySelector(`tr[data-genre-id="${genreId}"]`).remove();
+                        alert('Жанр успешно удалён');
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                        button.disabled = false;
+                        button.textContent = 'Удалить';
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при удалении: ' + error.message);
+                    button.disabled = false;
+                    button.textContent = 'Удалить';
+                });
+        }
+
+        function deleteDirector(directorId, button) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            apiCall(`/api/admin/directors/${directorId}`, 'DELETE')
+                .then(data => {
+                    if (data.success) {
+                        document.querySelector(`tr[data-director-id="${directorId}"]`).remove();
+                        alert('Режиссёр успешно удалён');
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                        button.disabled = false;
+                        button.textContent = 'Удалить';
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при удалении: ' + error.message);
+                    button.disabled = false;
+                    button.textContent = 'Удалить';
+                });
+        }
+
+        // Инициализация
+        loadFormData();
+        setupDeleteHandlers();
+    });
+    </script>
+</body>
+</html>
