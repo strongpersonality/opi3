@@ -38,18 +38,30 @@
                     <div class="col-md-6 mb-3">
                         <h6>Добавить носитель</h6>
                         <div class="input-group mb-2">
-                            <input type="text" id="carrierType" class="form-control" placeholder="Тип носителя">
-                        </div>
-                        <div class="input-group mb-2">
-                            <input type="text" id="carrierCondition" class="form-control" placeholder="Состояние">
-                        </div>
-                        <div class="input-group mb-2">
-                            <input type="number" step="0.01" id="carrierPrice" class="form-control" placeholder="Цена">
-                        </div>
-                        <div class="input-group mb-2">
                             <select id="carrierFilm" class="form-control">
                                 <option value="">Выберите фильм</option>
                             </select>
+                        </div>
+                        <div class="input-group mb-2">
+                            <select id="carrierType" class="form-control">
+                                <option value="">Тип носителя</option>
+                                <option value="DVD">DVD</option>
+                                <option value="Blu-ray">Blu-ray</option>
+                                <option value="Цифровая копия">Цифровая копия</option>
+                            </select>
+                        </div>
+                        <div class="input-group mb-2">
+                            <select id="carrierCondition" class="form-control">
+                                <option value="">Состояние</option>
+                                <option value="Отличное">Отличное</option>
+                                <option value="Хорошее">Хорошее</option>
+                                <option value="Удовлетворительное">Удовлетворительное</option>
+                                <option value="Плохое">Плохое</option>
+                                <option value="Повреждено">Повреждено</option>
+                            </select>
+                        </div>
+                        <div class="input-group mb-2">
+                            <input type="number" step="0.01" id="carrierPrice" class="form-control" placeholder="Цена">
                         </div>
                         <button class="btn btn-primary btn-sm" onclick="addCarrier()">Добавить носитель</button>
                     </div>
@@ -432,8 +444,7 @@
             const filmData = {
                 name: name,
                 year: parseInt(year),
-                director_id: parseInt(directorId),
-                genre_ids: []
+                director_id: parseInt(directorId)
             };
 
             apiCall('/api/admin/films', 'POST', filmData)
@@ -451,21 +462,21 @@
         };
 
         window.addCarrier = function() {
+            const filmId = document.getElementById('carrierFilm').value;
             const type = document.getElementById('carrierType').value;
             const condition = document.getElementById('carrierCondition').value;
             const price = document.getElementById('carrierPrice').value;
-            const filmId = document.getElementById('carrierFilm').value;
 
-            if (!type || !condition || !price || !filmId) {
+            if (!filmId || !type || !condition || !price) {
                 alert('Заполните все поля');
                 return;
             }
 
             const carrierData = {
+                film_id: parseInt(filmId),
                 type: type,
                 condition: condition,
-                price: parseFloat(price),
-                film_id: parseInt(filmId)
+                price: parseFloat(price)
             };
 
             apiCall('/api/admin/carriers', 'POST', carrierData)
@@ -494,7 +505,6 @@
             const readerData = {
                 fio: fio,
                 phone: phone || '',
-                reg_date: new Date().toISOString().split('T')[0],
                 status: 'Активен'
             };
 
@@ -679,6 +689,8 @@
                     if (data.success) {
                         document.querySelector(`tr[data-issue-id="${issueId}"]`).remove();
                         alert('Выдача успешно удалена');
+                        // Перезагружаем страницу, чтобы обновить статусы носителей
+                        setTimeout(() => location.reload(), 1000);
                     } else {
                         alert('Ошибка: ' + data.message);
                         button.disabled = false;
