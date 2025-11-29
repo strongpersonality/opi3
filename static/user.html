@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <title>Фильмотека — Пользователь</title>
+  <meta charset="UTF-8">
+  <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+  <h1>Доступные носители</h1>
+  <form class="search-form" method="get">
+    <input type="text" name="title" class="form-control" placeholder="Название фильма">
+    <select name="director" class="form-control">
+      <option value="">Режиссёр</option>
+      {% for d in directors %}
+      <option value="{{ d[1] }}">{{ d[1] }}</option>
+      {% endfor %}
+    </select>
+    <select name="genre" class="form-control">
+      <option value="">Жанр</option>
+      {% for g in genres %}
+      <option value="{{ g[1] }}">{{ g[1] }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-success">Искать</button>
+  </form>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Тип</th><th>Состояние</th><th>Статус</th><th>Цена</th>
+        <th>Название фильма</th><th>Год</th><th>Режиссёр</th><th>Жанры</th><th>Взять</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for carrier in carriers %}
+      <tr>
+        <td>{{ carrier.type }}</td>
+        <td>{{ carrier.condition }}</td>
+        <td>{{ carrier.status }}</td>
+        <td>{{ carrier.price }}</td>
+        <td>{{ carrier.localized_name }}</td>
+        <td>{{ carrier.year_out }}</td>
+        <td>{{ carrier.director }}</td>
+        <td>{{ ', '.join(carrier.genres) }}</td>
+        <td>
+          {% if carrier.status == 'Доступен' %}
+            <form method="post" action="/user/take/{{ carrier.id }}">
+              <button class="btn btn-success">Взять</button>
+            </form>
+          {% else %}
+            <span class="text-danger">Недоступно</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
