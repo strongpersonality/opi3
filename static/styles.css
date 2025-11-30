@@ -66,6 +66,12 @@
     width: 100%;
 }
 
+.accordion-body table {
+    max-width: 100% !important;
+    width: 100% !important;
+    table-layout: fixed;
+}
+
 .accordion-button:focus {
     box-shadow: none;
     border-color: rgba(0,0,0,.125);
