@@ -1,107 +1,63 @@
-body {
-  font-family: 'Segoe UI', Arial, sans-serif; 
-  background: #f3f6fc; 
-  margin: 0;
-  color: #1a1c20;
-}
-h1 {
-  font-size: 2.2em;
-  color: #3a5166;
-  margin-bottom: 0.5em;
-}
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 2em;
-}
-.table th, .table td {
-  border: 1px solid #c0cfe5;
-  padding: 0.7em;
-  text-align: left;
-}
-.table thead th {
-  background: #bddef4;
-  color: #31567a;
-  font-weight: 600;
-}
-.table tbody tr:nth-child(odd) {
-  background: #e7f1fa;
-}
-.table tbody tr:nth-child(even) {
-  background: #f7fbfe;
-}
-.btn {
-  padding: 0.5em 1.1em;
-  border-radius: 5px;
-  color: #fff;
-  background: linear-gradient(90deg,#68a6dc,#7bc9aa);
-  border: none;
-  font-weight: 500;
-  cursor: pointer;
-  margin-right: 0.2em;
-  transition: background 120ms;
-  display: inline-block;
-  text-decoration: none;
-}
-.btn-success {
-  background: linear-gradient(90deg,#3fd186,#44c4d6);
-}
-.btn-warning {
-  background: linear-gradient(90deg,#faae42,#ecc750);
-  color: #1a1c20;
-}
-.btn-danger {
-  background: linear-gradient(90deg,#ed4858,#ef7a4d);
-}
-.btn:hover {
-  filter: brightness(1.06);
-}
-.accordion-header button {
-  background: #e3ebf5;
-  color: #275480;
-  border: none;
-  font-weight: 600;
-  font-size: 1.18em;
-}
-.accordion-button:not(.collapsed) {
-  background-color: #cbe4fc;
-  color: #1a2b4e;
-}
-.accordion-item {
-  border-radius: 7px;
-  border: 1px solid #d0e3f7;
-  margin-bottom: 1.1em;
-  box-shadow: 0 2px 7px #acbeda42;
-}
-input, select, textarea {
-  padding: 0.5em;
-  border: 1px solid #a6b8d9;
-  border-radius: 4px;
-  background: #f8fafc;
-  font-size: 1em;
-  margin-right: 0.5em;
-}
-input:focus, select:focus, textarea:focus {
-  border-color: #3fd186; outline: none;
-}
-form {
-  margin-bottom: 1em;
-}
-tr:hover {
-  background: #d1e5f7 !important;
-  transition: background 100ms;
-}
-.search-form {
-  display: flex;
-  gap: .5em;
-  margin-bottom: 1em;
-}
-.text-danger {
-  color: #de3b3b;
-  font-weight: 600;
-}
 .container {
-  max-width: 1200px;
-  margin: auto;
-  padding: 2em;
+    max-width: 1400px;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Анимации */
+.table tbody tr {
+    transition: background-color 0.15s ease-in-out;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.025);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 15px;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-sm {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.4rem;
+    }
+}
+
+/* Стили для accordion */
+.accordion-button:not(.collapsed) {
+    background-color: #e7f1ff;
+    color: #0c63e4;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: rgba(0,0,0,.125);
 }
