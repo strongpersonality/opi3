@@ -2,9 +2,6 @@
     max-width: 1400px;
 }
 
-.table.table.table-striped {
-    max-width: 730px;
-}
 .card {
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     border: 1px solid rgba(0, 0, 0, 0.125);
@@ -58,6 +55,11 @@
 .accordion-button:not(.collapsed) {
     background-color: #e7f1ff;
     color: #0c63e4;
+}
+
+.accordion-body .table {
+    max-width: 100%;
+    width: 100%;
 }
 
 .accordion-button:focus {
