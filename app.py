@@ -99,6 +99,45 @@ def get_carriers_with_status():
         if conn:
             conn.close()
 
+def find_or_create_reader(fio, phone):
+    """Находит пользователя по ФИО и телефону или создает нового"""
+    conn = None
+    try:
+        conn = db_conn()
+        cursor = conn.cursor()
+        
+        # Ищем пользователя по ФИО и телефону
+        cursor.execute("""
+            SELECT id FROM readers 
+            WHERE fio = %s AND phone = %s
+        """, (fio, phone))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            # Пользователь найден
+            reader_id = result[0]
+            return reader_id, False
+        else:
+            # Создаем нового пользователя
+            cursor.execute("""
+                INSERT INTO readers (fio, phone, status, permission_for_own_data)
+                VALUES (%s, %s, 'Активен', true)
+                RETURNING id
+            """, (fio, phone))
+            
+            reader_id = cursor.fetchone()[0]
+            conn.commit()
+            return reader_id, True
+            
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise e
+    finally:
+        if conn:
+            conn.close()
+
 @app.route('/')
 def index():
     return redirect('/user')
@@ -155,11 +194,28 @@ def user_page():
 
 @app.route('/api/user/take/<int:carrier_id>', methods=['POST'])
 def api_user_take_carrier(carrier_id):
-    # В реальном приложении здесь должна быть аутентификация
-    reader_id = session.get('reader_id', 1)  # По умолчанию первый читатель
-    
     conn = None
     try:
+        data = request.json
+        
+        # Проверяем обязательные поля
+        if not data.get('last_name') or not data.get('first_name') or not data.get('phone'):
+            return jsonify({'success': False, 'message': 'Заполните все обязательные поля'}), 400
+        
+        # Формируем ФИО
+        last_name = data['last_name'].strip()
+        first_name = data['first_name'].strip()
+        middle_name = data.get('middle_name', '').strip()
+        
+        fio = f"{last_name} {first_name}"
+        if middle_name:
+            fio += f" {middle_name}"
+            
+        phone = data['phone'].strip()
+        
+        # Находим или создаем пользователя
+        reader_id, is_new_user = find_or_create_reader(fio, phone)
+        
         conn = db_conn()
         cursor = conn.cursor()
 
@@ -213,9 +269,12 @@ def api_user_take_carrier(carrier_id):
         """, (carrier_id,))
         
         conn.commit()
+        
+        user_message = "Новый пользователь зарегистрирован. " if is_new_user else ""
         return jsonify({
             'success': True, 
-            'message': f'Носитель успешно взят до {planned_return}'
+            'message': f'{user_message}Носитель успешно взят до {planned_return}',
+            'is_new_user': is_new_user
         })
         
     except Exception as e:
