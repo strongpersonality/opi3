@@ -95,6 +95,15 @@
                         </div>
                         <button class="btn btn-primary btn-sm" onclick="addDirector()">Добавить режиссёра</button>
                     </div>
+
+                    <!-- Синхронизация статусов -->
+                    <div class="col-12 mt-3">
+                        <div class="alert alert-warning">
+                            <h6>Синхронизация статусов</h6>
+                            <p class="mb-2">Если есть несоответствия статусов носителей, используйте эту кнопку:</p>
+                            <button class="btn btn-warning btn-sm" onclick="syncStatuses()">Синхронизировать статусы</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -574,6 +583,24 @@
                 });
         };
 
+        // Синхронизация статусов
+        window.syncStatuses = function() {
+            if (confirm('Вы уверены, что хотите синхронизировать статусы носителей?')) {
+                apiCall('/api/admin/sync_statuses', 'POST')
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Ошибка: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Ошибка при синхронизации: ' + error.message);
+                    });
+            }
+        };
+
         // Обработчики для удаления
         function setupDeleteHandlers() {
             document.querySelectorAll('.delete-film-btn').forEach(btn => {
@@ -599,7 +626,7 @@
             document.querySelectorAll('.delete-issue-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const issueId = this.getAttribute('data-issue-id');
-                    if (confirm('Вы уверены, что хотите удалить эту выдачу?')) {
+                    if (confirm('Вы уверены, что хотите удалить эту выдачу? Носитель станет доступным.')) {
                         deleteIssue(issueId, this);
                     }
                 });
@@ -688,8 +715,8 @@
                 .then(data => {
                     if (data.success) {
                         document.querySelector(`tr[data-issue-id="${issueId}"]`).remove();
-                        alert('Выдача успешно удалена');
-                        // Перезагружаем страницу, чтобы обновить статусы носителей
+                        alert('Выдача успешно удалена. Носитель снова доступен.');
+                        // Перезагружаем страницу, чтобы обновить статусы везде
                         setTimeout(() => location.reload(), 1000);
                     } else {
                         alert('Ошибка: ' + data.message);
