@@ -16,7 +16,7 @@
                 <h5 class="mb-0">Ваши данные для взятия носителя</h5>
             </div>
             <div class="card-body">
-                <div class="row g-3">
+                <div class="row g-3" id="userDataForm">
                     <div class="col-md-3">
                         <label for="lastName" class="form-label">Фамилия *</label>
                         <input type="text" class="form-control" id="lastName" name="last_name" required>
@@ -47,7 +47,7 @@
         <!-- Форма поиска -->
         <div class="card mb-4">
             <div class="card-body">
-                <form method="GET" action="/cgi-bin/user.py" class="row g-3">
+                <form method="GET" action="/cgi-bin/user.py" class="row g-3" id="searchForm">
                     <input type="hidden" name="action" value="search">
                     
                     <div class="col-md-4">
@@ -74,7 +74,7 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary w-100">Поиск</button>
+                        <button type="submit" class="btn btn-primary w-100" id="searchBtn">Поиск</button>
                     </div>
                 </form>
             </div>
@@ -107,9 +107,9 @@
                                 <th>Действие</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="carriersTable">
                             {% for carrier in carriers %}
-                            <tr>
+                            <tr data-carrier-id="{{ carrier.id }}">
                                 <td><strong>{{ carrier.localized_name }}</strong></td>
                                 <td>{{ carrier.year_out }}</td>
                                 <td>{{ carrier.director }}</td>
@@ -137,22 +137,20 @@
                                 </td>
                                 <td>
                                     {% if carrier.status == 'Доступен' %}
-                                        <span class="badge bg-success">Доступен</span>
+                                        <span class="badge bg-success carrier-status">Доступен</span>
                                     {% elif carrier.status == 'Забронирован' %}
-                                        <span class="badge bg-warning">Забронирован</span>
+                                        <span class="badge bg-warning carrier-status">Забронирован</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">{{ carrier.status }}</span>
+                                        <span class="badge bg-secondary carrier-status">{{ carrier.status }}</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if carrier.status == 'Доступен' %}
-                                        <form method="POST" action="/cgi-bin/user_take.py" class="d-inline" onsubmit="return validateForm(this) && confirm('Взять {{ carrier.localized_name }}?')">
-                                            <input type="hidden" name="carrier_id" value="{{ carrier.id }}">
-                                            <input type="hidden" name="carrier_name" value="{{ carrier.localized_name }}">
-                                            <button type="submit" class="btn btn-success btn-sm">
-                                                Взять
-                                            </button>
-                                        </form>
+                                        <button type="button" class="btn btn-success btn-sm take-btn" 
+                                                data-carrier-id="{{ carrier.id }}"
+                                                data-carrier-name="{{ carrier.localized_name }}">
+                                            Взять
+                                        </button>
                                     {% elif carrier.status == 'Забронирован' %}
                                         <span class="text-muted">Недоступно</span>
                                     {% else %}
@@ -181,92 +179,219 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    // Валидация формы перед отправкой
-    function validateForm(form) {
-        const lastName = document.getElementById('lastName').value.trim();
-        const firstName = document.getElementById('firstName').value.trim();
-        const phone = document.getElementById('phone').value.trim();
-
-        if (!lastName || !firstName || !phone) {
-            alert('Пожалуйста, заполните все обязательные поля (Фамилия, Имя, Телефон)');
-            return false;
+    class FilmotekaUser {
+        constructor() {
+            this.initEventListeners();
+            this.loadUserData();
+            this.setupPhoneMask();
+            this.setupAutoHideAlerts();
         }
 
-        // Простая валидация телефона
-        if (!phone.match(/^(\+7|8)[\s\-]?\(?[0-9]{3}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$/)) {
-            alert('Пожалуйста, введите корректный номер телефона');
-            return false;
+        initEventListeners() {
+            // Event listener для кнопок "Взять"
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('take-btn')) {
+                    this.handleTakeCarrier(e.target);
+                }
+            });
+
+            // Event listener для формы поиска
+            document.getElementById('searchForm').addEventListener('submit', (e) => {
+                this.handleSearch(e);
+            });
+
+            // Event listener для сохранения данных пользователя
+            const userFields = ['lastName', 'firstName', 'middleName', 'phone'];
+            userFields.forEach(field => {
+                document.getElementById(field).addEventListener('input', (e) => {
+                    this.saveUserData();
+                });
+            });
         }
 
-        // Добавляем данные пользователя в форму
-        const lastNameInput = document.createElement('input');
-        lastNameInput.type = 'hidden';
-        lastNameInput.name = 'last_name';
-        lastNameInput.value = lastName;
-        form.appendChild(lastNameInput);
+        handleTakeCarrier(button) {
+            const carrierId = button.getAttribute('data-carrier-id');
+            const carrierName = button.getAttribute('data-carrier-name');
+            
+            if (!this.validateUserData()) {
+                return;
+            }
 
-        const firstNameInput = document.createElement('input');
-        firstNameInput.type = 'hidden';
-        firstNameInput.name = 'first_name';
-        firstNameInput.value = firstName;
-        form.appendChild(firstNameInput);
+            if (!confirm(`Вы уверены, что хотите взять "${carrierName}"?`)) {
+                return;
+            }
 
-        const middleNameInput = document.createElement('input');
-        middleNameInput.type = 'hidden';
-        middleNameInput.name = 'middle_name';
-        middleNameInput.value = document.getElementById('middleName').value.trim();
-        form.appendChild(middleNameInput);
+            this.takeCarrier(carrierId, carrierName, button);
+        }
 
-        const phoneInput = document.createElement('input');
-        phoneInput.type = 'hidden';
-        phoneInput.name = 'phone';
-        phoneInput.value = phone;
-        form.appendChild(phoneInput);
+        validateUserData() {
+            const lastName = document.getElementById('lastName').value.trim();
+            const firstName = document.getElementById('firstName').value.trim();
+            const phone = document.getElementById('phone').value.trim();
 
-        return true;
+            if (!lastName || !firstName || !phone) {
+                this.showMessage('Пожалуйста, заполните все обязательные поля (Фамилия, Имя, Телефон)', 'danger');
+                return false;
+            }
+
+            if (!this.validatePhone(phone)) {
+                this.showMessage('Пожалуйста, введите корректный номер телефона', 'danger');
+                return false;
+            }
+
+            return true;
+        }
+
+        validatePhone(phone) {
+            return phone.match(/^(\+7|8)[\s\-]?\(?[0-9]{3}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$/);
+        }
+
+        async takeCarrier(carrierId, carrierName, button) {
+            const userData = this.getUserData();
+            
+            // Показываем индикатор загрузки
+            const originalText = button.innerHTML;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Загрузка...';
+            button.disabled = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('carrier_id', carrierId);
+                formData.append('last_name', userData.lastName);
+                formData.append('first_name', userData.firstName);
+                formData.append('middle_name', userData.middleName);
+                formData.append('phone', userData.phone);
+
+                const response = await fetch('/cgi-bin/user_take.py', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.text();
+                
+                // Парсим ответ (ожидаем HTML с сообщением)
+                if (response.ok) {
+                    this.showMessage(`Носитель "${carrierName}" успешно взят!`, 'success');
+                    this.updateCarrierStatus(carrierId, 'Выдан');
+                    this.disableTakeButton(button);
+                } else {
+                    throw new Error('Ошибка сервера');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                this.showMessage('Произошла ошибка при выполнении запроса', 'danger');
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        updateCarrierStatus(carrierId, status) {
+            const row = document.querySelector(`tr[data-carrier-id="${carrierId}"]`);
+            if (row) {
+                const statusCell = row.querySelector('.carrier-status');
+                if (statusCell) {
+                    statusCell.textContent = status;
+                    statusCell.className = 'badge bg-success carrier-status';
+                }
+            }
+        }
+
+        disableTakeButton(button) {
+            button.textContent = 'Взято';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-secondary');
+            button.disabled = true;
+        }
+
+        handleSearch(e) {
+            // Дополнительная валидация может быть добавлена здесь
+            console.log('Search form submitted');
+        }
+
+        getUserData() {
+            return {
+                lastName: document.getElementById('lastName').value.trim(),
+                firstName: document.getElementById('firstName').value.trim(),
+                middleName: document.getElementById('middleName').value.trim(),
+                phone: document.getElementById('phone').value.trim()
+            };
+        }
+
+        saveUserData() {
+            const data = this.getUserData();
+            localStorage.setItem('user_lastName', data.lastName);
+            localStorage.setItem('user_firstName', data.firstName);
+            localStorage.setItem('user_middleName', data.middleName);
+            localStorage.setItem('user_phone', data.phone);
+        }
+
+        loadUserData() {
+            document.getElementById('lastName').value = localStorage.getItem('user_lastName') || '';
+            document.getElementById('firstName').value = localStorage.getItem('user_firstName') || '';
+            document.getElementById('middleName').value = localStorage.getItem('user_middleName') || '';
+            document.getElementById('phone').value = localStorage.getItem('user_phone') || '';
+        }
+
+        setupPhoneMask() {
+            document.getElementById('phone').addEventListener('input', (e) => {
+                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+                if (!x) return;
+                
+                let formatted = '';
+                if (x[1]) formatted = '+' + x[1];
+                if (x[2]) formatted += ' (' + x[2];
+                if (x[3]) formatted += ') ' + x[3];
+                if (x[4]) formatted += '-' + x[4];
+                if (x[5]) formatted += '-' + x[5];
+                
+                e.target.value = formatted;
+            });
+        }
+
+        showMessage(message, type = 'info') {
+            // Создаем или обновляем alert
+            let alertDiv = document.querySelector('.alert');
+            if (!alertDiv) {
+                alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.card'));
+            } else {
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+            }
+
+            // Авто-скрытие через 5 секунд
+            setTimeout(() => {
+                if (alertDiv && alertDiv.parentNode) {
+                    const bsAlert = new bootstrap.Alert(alertDiv);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
+
+        setupAutoHideAlerts() {
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                });
+            }, 5000);
+        }
     }
 
-    // Маска для телефона
-    document.getElementById('phone').addEventListener('input', function(e) {
-        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
-        if (!x) return;
-        
-        let formatted = '';
-        if (x[1]) formatted = '+' + x[1];
-        if (x[2]) formatted += ' (' + x[2];
-        if (x[3]) formatted += ') ' + x[3];
-        if (x[4]) formatted += '-' + x[4];
-        if (x[5]) formatted += '-' + x[5];
-        
-        e.target.value = formatted;
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', () => {
+        new FilmotekaUser();
     });
-
-    // Сохранение данных в localStorage
-    const formFields = ['lastName', 'firstName', 'middleName', 'phone'];
-    
-    // Загрузка сохраненных данных
-    formFields.forEach(field => {
-        const savedValue = localStorage.getItem(`user_${field}`);
-        if (savedValue) {
-            document.getElementById(field).value = savedValue;
-        }
-    });
-
-    // Сохранение данных при изменении
-    formFields.forEach(field => {
-        document.getElementById(field).addEventListener('input', function() {
-            localStorage.setItem(`user_${field}`, this.value);
-        });
-    });
-
-    // Автоматическое скрытие alert через 5 секунд
-    setTimeout(() => {
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            const bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
-        });
-    }, 5000);
     </script>
 </body>
 </html>
