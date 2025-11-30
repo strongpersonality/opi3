@@ -47,15 +47,14 @@ def get_carriers_with_status():
         """)
         genres_map = dict(cursor.fetchall())
 
-        # Получаем активные выдачи
+        # Получаем активные выдачи для дополнительной проверки
         cursor.execute("SELECT carrier_id FROM issues WHERE status = 'Активна'")
         issued_carrier_ids = set(cid for (cid,) in cursor.fetchall())
         
         # Получаем подтверждённые бронирования
         cursor.execute("""
             SELECT film_id FROM reservations 
-            WHERE status = 'Подтверждено' 
-            AND period @> CURRENT_DATE
+            WHERE status = 'Подтверждено' AND period @> CURRENT_DATE
         """)
         reserved_film_ids = set(fid for (fid,) in cursor.fetchall())
 
@@ -64,17 +63,17 @@ def get_carriers_with_status():
             carrier_id = c[0]
             film_id = c[8]
             
-            # Определяем статус носителя
-            if carrier_id in issued_carrier_ids:
+            # Основной статус берем из таблицы carriers
+            base_status = c[4]
+            
+            # Дополнительная проверка: если носитель в carriers отмечен как "Доступен",
+            # но есть активная выдача - исправляем статус
+            if base_status == 'Доступен' and carrier_id in issued_carrier_ids:
                 status = 'Выдан'
-            elif film_id in reserved_film_ids:
+            elif base_status == 'Доступен' and film_id in reserved_film_ids:
                 status = 'Забронирован'
-            elif c[4] == 'Списан':
-                status = 'Списан'
-            elif c[4] == 'На реставрации':
-                status = 'На реставрации'
             else:
-                status = 'Доступен'
+                status = base_status
                 
             genres = genres_map.get(film_id, [])
             carriers.append({
@@ -164,7 +163,7 @@ def api_user_take_carrier(carrier_id):
         conn = db_conn()
         cursor = conn.cursor()
 
-        # Проверяем, доступен ли носитель
+        # Проверяем, доступен ли носитель (статус в таблице carriers)
         cursor.execute("""
             SELECT status, film_id FROM carriers WHERE id = %s
         """, (carrier_id,))
@@ -175,15 +174,20 @@ def api_user_take_carrier(carrier_id):
             
         carrier_status, film_id = result
         
+        # Проверяем статус носителя в таблице carriers
         if carrier_status != 'Доступен':
-            return jsonify({'success': False, 'message': 'Носитель недоступен'}), 400
+            return jsonify({'success': False, 'message': f'Носитель недоступен (статус: {carrier_status})'}), 400
         
-        # Проверяем, не выдан ли уже носитель
+        # Дополнительная проверка: нет ли активных выдач для этого носителя
         cursor.execute("""
             SELECT id FROM issues 
             WHERE carrier_id = %s AND status = 'Активна'
         """, (carrier_id,))
         if cursor.fetchone():
+            # Если нашли активную выдачу, но статус носителя "Доступен" - это несоответствие
+            # Исправляем статус носителя
+            cursor.execute("UPDATE carriers SET status = 'Выдан' WHERE id = %s", (carrier_id,))
+            conn.commit()
             return jsonify({'success': False, 'message': 'Носитель уже выдан'}), 400
         
         # Проверяем, нет ли активных бронирований для этого фильма
@@ -203,7 +207,7 @@ def api_user_take_carrier(carrier_id):
             VALUES (%s, %s, %s, %s, 'Активна')
         """, (reader_id, carrier_id, given_at, planned_return))
         
-        # Обновляем статус носителя
+        # Обновляем статус носителя на "Выдан"
         cursor.execute("""
             UPDATE carriers SET status = 'Выдан' WHERE id = %s
         """, (carrier_id,))
@@ -450,13 +454,22 @@ def api_delete_issue(issue_id):
         conn = db_conn(user='film_admin', pwd='admin123')
         cursor = conn.cursor()
         
-        # Получаем carrier_id перед удалением выдачи
-        cursor.execute("SELECT carrier_id FROM issues WHERE id = %s", (issue_id,))
+        # Получаем информацию о выдаче перед удалением
+        cursor.execute("""
+            SELECT carrier_id, status FROM issues WHERE id = %s
+        """, (issue_id,))
         result = cursor.fetchone()
-        if result:
-            carrier_id = result[0]
-            # Обновляем статус носителя обратно на "Доступен"
-            cursor.execute("UPDATE carriers SET status = 'Доступен' WHERE id = %s", (carrier_id,))
+        
+        if not result:
+            return jsonify({'success': False, 'message': 'Выдача не найдена'}), 404
+            
+        carrier_id, issue_status = result
+        
+        # Если выдача активна, возвращаем носитель в доступные
+        if issue_status == 'Активна':
+            cursor.execute("""
+                UPDATE carriers SET status = 'Доступен' WHERE id = %s
+            """, (carrier_id,))
         
         # Удаляем выдачу
         cursor.execute("DELETE FROM issues WHERE id = %s", (issue_id,))
@@ -640,6 +653,53 @@ def api_create_director():
         director_id = cursor.fetchone()[0]
         conn.commit()
         return jsonify({'success': True, 'id': director_id})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+# Функция для синхронизации статусов
+@app.route('/api/admin/sync_statuses', methods=['POST'])
+def api_sync_statuses():
+    """Синхронизирует статусы носителей между таблицами carriers и issues"""
+    conn = None
+    try:
+        conn = db_conn(user='film_admin', pwd='admin123')
+        cursor = conn.cursor()
+        
+        # Находим носители, у которых статус в carriers не соответствует активным выдачам
+        cursor.execute("""
+            UPDATE carriers 
+            SET status = 'Выдан' 
+            WHERE id IN (
+                SELECT carrier_id 
+                FROM issues 
+                WHERE status = 'Активна'
+            ) AND status != 'Выдан'
+        """)
+        updated_to_issued = cursor.rowcount
+        
+        cursor.execute("""
+            UPDATE carriers 
+            SET status = 'Доступен' 
+            WHERE id NOT IN (
+                SELECT carrier_id 
+                FROM issues 
+                WHERE status = 'Активна'
+            ) AND status = 'Выдан'
+        """)
+        updated_to_available = cursor.rowcount
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Синхронизация завершена. Обновлено: {updated_to_issued} -> "Выдан", {updated_to_available} -> "Доступен"'
+        })
+        
     except Exception as e:
         if conn:
             conn.rollback()
