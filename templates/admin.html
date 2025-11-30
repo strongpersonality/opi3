@@ -4,12 +4,20 @@
     <title>Фильмотека — Администрирование</title>
     <meta charset="UTF-8">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
+    <link href="/static/styles.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-4">
         <h1 class="mb-4">🎬 Панель администратора фильмотеки</h1>
         
+        <!-- Сообщения -->
+        {% if message %}
+        <div class="alert alert-{{ message_type }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
         <!-- Формы для добавления новых записей -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
@@ -20,88 +28,122 @@
                     <!-- Форма для фильмов -->
                     <div class="col-md-6 mb-3">
                         <h6>Добавить фильм</h6>
-                        <div class="input-group mb-2">
-                            <input type="text" id="filmName" class="form-control" placeholder="Название фильма">
-                        </div>
-                        <div class="input-group mb-2">
-                            <input type="number" id="filmYear" class="form-control" placeholder="Год выпуска">
-                        </div>
-                        <div class="input-group mb-2">
-                            <select id="filmDirector" class="form-control">
-                                <option value="">Выберите режиссёра</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-primary btn-sm" onclick="addFilm()">Добавить фильм</button>
+                        <form method="POST" action="/cgi-bin/admin_add.py" class="row g-2">
+                            <input type="hidden" name="entity_type" value="film">
+                            <div class="col-12">
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Название фильма" required>
+                            </div>
+                            <div class="col-12">
+                                <input type="number" name="year" class="form-control form-control-sm" placeholder="Год выпуска" required>
+                            </div>
+                            <div class="col-12">
+                                <select name="director_id" class="form-control form-control-sm" required>
+                                    <option value="">Выберите режиссёра</option>
+                                    {% for director in directors %}
+                                    <option value="{{ director[0] }}">{{ director[1] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Добавить фильм</button>
+                            </div>
+                        </form>
                     </div>
 
                     <!-- Форма для носителей -->
                     <div class="col-md-6 mb-3">
                         <h6>Добавить носитель</h6>
-                        <div class="input-group mb-2">
-                            <select id="carrierFilm" class="form-control">
-                                <option value="">Выберите фильм</option>
-                            </select>
-                        </div>
-                        <div class="input-group mb-2">
-                            <select id="carrierType" class="form-control">
-                                <option value="">Тип носителя</option>
-                                <option value="DVD">DVD</option>
-                                <option value="Blu-ray">Blu-ray</option>
-                                <option value="Цифровая копия">Цифровая копия</option>
-                            </select>
-                        </div>
-                        <div class="input-group mb-2">
-                            <select id="carrierCondition" class="form-control">
-                                <option value="">Состояние</option>
-                                <option value="Отличное">Отличное</option>
-                                <option value="Хорошее">Хорошее</option>
-                                <option value="Удовлетворительное">Удовлетворительное</option>
-                                <option value="Плохое">Плохое</option>
-                                <option value="Повреждено">Повреждено</option>
-                            </select>
-                        </div>
-                        <div class="input-group mb-2">
-                            <input type="number" step="0.01" id="carrierPrice" class="form-control" placeholder="Цена">
-                        </div>
-                        <button class="btn btn-primary btn-sm" onclick="addCarrier()">Добавить носитель</button>
+                        <form method="POST" action="/cgi-bin/admin_add.py" class="row g-2">
+                            <input type="hidden" name="entity_type" value="carrier">
+                            <div class="col-12">
+                                <select name="film_id" class="form-control form-control-sm" required>
+                                    <option value="">Выберите фильм</option>
+                                    {% for film in films %}
+                                    <option value="{{ film[0] }}">{{ film[1] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <select name="type" class="form-control form-control-sm" required>
+                                    <option value="">Тип носителя</option>
+                                    <option value="DVD">DVD</option>
+                                    <option value="Blu-ray">Blu-ray</option>
+                                    <option value="Цифровая копия">Цифровая копия</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <select name="condition" class="form-control form-control-sm" required>
+                                    <option value="">Состояние</option>
+                                    <option value="Отличное">Отличное</option>
+                                    <option value="Хорошее">Хорошее</option>
+                                    <option value="Удовлетворительное">Удовлетворительное</option>
+                                    <option value="Плохое">Плохое</option>
+                                    <option value="Повреждено">Повреждено</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <input type="number" step="0.01" name="price" class="form-control form-control-sm" placeholder="Цена" required>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Добавить носитель</button>
+                            </div>
+                        </form>
                     </div>
 
                     <!-- Форма для пользователей -->
                     <div class="col-md-6 mb-3">
                         <h6>Добавить пользователя</h6>
-                        <div class="input-group mb-2">
-                            <input type="text" id="readerFio" class="form-control" placeholder="ФИО">
-                        </div>
-                        <div class="input-group mb-2">
-                            <input type="text" id="readerPhone" class="form-control" placeholder="Телефон">
-                        </div>
-                        <button class="btn btn-primary btn-sm" onclick="addReader()">Добавить пользователя</button>
+                        <form method="POST" action="/cgi-bin/admin_add.py" class="row g-2">
+                            <input type="hidden" name="entity_type" value="reader">
+                            <div class="col-12">
+                                <input type="text" name="fio" class="form-control form-control-sm" placeholder="ФИО" required>
+                            </div>
+                            <div class="col-12">
+                                <input type="text" name="phone" class="form-control form-control-sm" placeholder="Телефон">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Добавить пользователя</button>
+                            </div>
+                        </form>
                     </div>
 
                     <!-- Форма для жанров -->
                     <div class="col-md-6 mb-3">
                         <h6>Добавить жанр</h6>
-                        <div class="input-group mb-2">
-                            <input type="text" id="genreName" class="form-control" placeholder="Название жанра">
-                        </div>
-                        <button class="btn btn-primary btn-sm" onclick="addGenre()">Добавить жанр</button>
+                        <form method="POST" action="/cgi-bin/admin_add.py" class="row g-2">
+                            <input type="hidden" name="entity_type" value="genre">
+                            <div class="col-12">
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Название жанра" required>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Добавить жанр</button>
+                            </div>
+                        </form>
                     </div>
 
                     <!-- Форма для режиссёров -->
                     <div class="col-md-6 mb-3">
                         <h6>Добавить режиссёра</h6>
-                        <div class="input-group mb-2">
-                            <input type="text" id="directorName" class="form-control" placeholder="ФИО режиссёра">
-                        </div>
-                        <button class="btn btn-primary btn-sm" onclick="addDirector()">Добавить режиссёра</button>
+                        <form method="POST" action="/cgi-bin/admin_add.py" class="row g-2">
+                            <input type="hidden" name="entity_type" value="director">
+                            <div class="col-12">
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="ФИО режиссёра" required>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Добавить режиссёра</button>
+                            </div>
+                        </form>
                     </div>
 
                     <!-- Синхронизация статусов -->
                     <div class="col-12 mt-3">
-                        <div class="alert alert-warning">
-                            <h6>Синхронизация статусов</h6>
-                            <p class="mb-2">Если есть несоответствия статусов носителей, используйте эту кнопку:</p>
-                            <button class="btn btn-warning btn-sm" onclick="syncStatuses()">Синхронизировать статусы</button>
+                        <div class="alert alert-warning py-2">
+                            <form method="POST" action="/cgi-bin/admin_sync.py" class="d-inline">
+                                <h6 class="d-inline">Синхронизация статусов: </h6>
+                                <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Синхронизировать статусы носителей?')">
+                                    Синхронизировать
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -128,16 +170,22 @@
                                     <th>Действия</th>
                                 </tr>
                             </thead>
-                            <tbody id="filmsTableBody">
+                            <tbody>
                                 {% for film in films %}
-                                <tr data-film-id="{{ film[0] }}">
+                                <tr>
                                     <td><strong>{{ film[1] }}</strong></td>
                                     <td>{{ film[2] }}</td>
                                     <td>{{ film[3] }}</td>
                                     <td>{{ film[4] | join(', ') if film[4] else '—' }}</td>
                                     <td>
-                                        <!--<button class="btn btn-warning btn-sm edit-film-btn" data-film-id="{{ film[0] }}">Редактировать</button>-->
-                                        <button class="btn btn-danger btn-sm delete-film-btn" data-film-id="{{ film[0] }}">Удалить</button>
+                                        <form method="POST" action="/cgi-bin/admin_delete.py" class="d-inline">
+                                            <input type="hidden" name="entity_type" value="film">
+                                            <input type="hidden" name="entity_id" value="{{ film[0] }}">
+                                            <button type="submit" class="btn btn-danger btn-sm" 
+                                                    onclick="return confirm('Удалить фильм \"{{ film[1] }}\"?')">
+                                                Удалить
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -168,9 +216,9 @@
                                     <th>Действия</th>
                                 </tr>
                             </thead>
-                            <tbody id="carriersTableBody">
+                            <tbody>
                                 {% for carrier in carriers %}
-                                <tr data-carrier-id="{{ carrier[0] }}">
+                                <tr>
                                     <td><span class="badge bg-info">{{ carrier[1] }}</span></td>
                                     <td><strong>{{ carrier[5] }}</strong></td>
                                     <td>
@@ -204,8 +252,14 @@
                                     </td>
                                     <td>{{ carrier[6] }}</td>
                                     <td>
-                                        <!--<button class="btn btn-warning btn-sm edit-carrier-btn" data-carrier-id="{{ carrier[0] }}">Редактировать</button>-->
-                                        <button class="btn btn-danger btn-sm delete-carrier-btn" data-carrier-id="{{ carrier[0] }}">Удалить</button>
+                                        <form method="POST" action="/cgi-bin/admin_delete.py" class="d-inline">
+                                            <input type="hidden" name="entity_type" value="carrier">
+                                            <input type="hidden" name="entity_id" value="{{ carrier[0] }}">
+                                            <button type="submit" class="btn btn-danger btn-sm" 
+                                                    onclick="return confirm('Удалить носитель \"{{ carrier[5] }}\"?')">
+                                                Удалить
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -236,9 +290,9 @@
                                     <th>Действия</th>
                                 </tr>
                             </thead>
-                            <tbody id="issuesTableBody">
+                            <tbody>
                                 {% for issue in issues %}
-                                <tr data-issue-id="{{ issue[0] }}">
+                                <tr>
                                     <td><strong>{{ issue[9] }}</strong> ({{ issue[8] }})</td>
                                     <td>{{ issue[7] }}</td>
                                     <td>{{ issue[3] }}</td>
@@ -254,8 +308,14 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <!--<button class="btn btn-warning btn-sm edit-issue-btn" data-issue-id="{{ issue[0] }}">Изменить</button>-->
-                                        <button class="btn btn-danger btn-sm delete-issue-btn" data-issue-id="{{ issue[0] }}">Удалить</button>
+                                        <form method="POST" action="/cgi-bin/admin_delete.py" class="d-inline">
+                                            <input type="hidden" name="entity_type" value="issue">
+                                            <input type="hidden" name="entity_id" value="{{ issue[0] }}">
+                                            <button type="submit" class="btn btn-danger btn-sm" 
+                                                    onclick="return confirm('Удалить выдачу? Носитель станет доступным.')">
+                                                Удалить
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -285,9 +345,9 @@
                                     <th>Действия</th>
                                 </tr>
                             </thead>
-                            <tbody id="readersTableBody">
+                            <tbody>
                                 {% for reader in readers %}
-                                <tr data-reader-id="{{ reader[0] }}">
+                                <tr>
                                     <td>{{ reader[0] }}</td>
                                     <td><strong>{{ reader[1] }}</strong></td>
                                     <td>{{ reader[2] or "—" }}</td>
@@ -302,8 +362,14 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <!--<button class="btn btn-warning btn-sm edit-reader-btn" data-reader-id="{{ reader[0] }}">Редактировать</button>-->
-                                        <button class="btn btn-danger btn-sm delete-reader-btn" data-reader-id="{{ reader[0] }}">Удалить</button>
+                                        <form method="POST" action="/cgi-bin/admin_delete.py" class="d-inline">
+                                            <input type="hidden" name="entity_type" value="reader">
+                                            <input type="hidden" name="entity_id" value="{{ reader[0] }}">
+                                            <button type="submit" class="btn btn-danger btn-sm" 
+                                                    onclick="return confirm('Удалить пользователя \"{{ reader[1] }}\"?')">
+                                                Удалить
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -330,14 +396,20 @@
                                     <th>Действия</th>
                                 </tr>
                             </thead>
-                            <tbody id="genresTableBody">
+                            <tbody>
                                 {% for genre in genres %}
-                                <tr data-genre-id="{{ genre[0] }}">
+                                <tr>
                                     <td>{{ genre[0] }}</td>
                                     <td><strong>{{ genre[1] }}</strong></td>
                                     <td>
-                                        <!--<button class="btn btn-warning btn-sm edit-genre-btn" data-genre-id="{{ genre[0] }}">Редактировать</button>-->
-                                        <button class="btn btn-danger btn-sm delete-genre-btn" data-genre-id="{{ genre[0] }}">Удалить</button>
+                                        <form method="POST" action="/cgi-bin/admin_delete.py" class="d-inline">
+                                            <input type="hidden" name="entity_type" value="genre">
+                                            <input type="hidden" name="entity_id" value="{{ genre[0] }}">
+                                            <button type="submit" class="btn btn-danger btn-sm" 
+                                                    onclick="return confirm('Удалить жанр \"{{ genre[1] }}\"?')">
+                                                Удалить
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -364,14 +436,20 @@
                                     <th>Действия</th>
                                 </tr>
                             </thead>
-                            <tbody id="directorsTableBody">
+                            <tbody>
                                 {% for director in directors %}
-                                <tr data-director-id="{{ director[0] }}">
+                                <tr>
                                     <td>{{ director[0] }}</td>
                                     <td><strong>{{ director[1] }}</strong></td>
                                     <td>
-                                        <!--<button class="btn btn-warning btn-sm edit-director-btn" data-director-id="{{ director[0] }}">Редактировать</button>-->
-                                        <button class="btn btn-danger btn-sm delete-director-btn" data-director-id="{{ director[0] }}">Удалить</button>
+                                        <form method="POST" action="/cgi-bin/admin_delete.py" class="d-inline">
+                                            <input type="hidden" name="entity_type" value="director">
+                                            <input type="hidden" name="entity_id" value="{{ director[0] }}">
+                                            <button type="submit" class="btn btn-danger btn-sm" 
+                                                    onclick="return confirm('Удалить режиссёра \"{{ director[1] }}\"?')">
+                                                Удалить
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -381,426 +459,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Ссылка в пользовательский интерфейс -->
+        <div class="text-center mt-4">
+            <a href="/cgi-bin/user.py" class="btn btn-outline-primary">Пользовательский интерфейс</a>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Общие функции для работы с API
-        function apiCall(url, method, data = null) {
-            return fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: data ? JSON.stringify(data) : null
-            }).then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            });
-        }
-
-        // Загрузка данных для форм
-        function loadFormData() {
-            // Загрузка режиссёров для формы фильма
-            apiCall('/api/admin/directors', 'GET')
-                .then(directors => {
-                    const select = document.getElementById('filmDirector');
-                    select.innerHTML = '<option value="">Выберите режиссёра</option>';
-                    directors.forEach(d => {
-                        const option = document.createElement('option');
-                        option.value = d.id;
-                        option.textContent = d.name;
-                        select.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading directors:', error);
-                    alert('Ошибка загрузки режиссёров');
-                });
-
-            // Загрузка фильмов для формы носителя
-            apiCall('/api/admin/films', 'GET')
-                .then(films => {
-                    const select = document.getElementById('carrierFilm');
-                    select.innerHTML = '<option value="">Выберите фильм</option>';
-                    films.forEach(f => {
-                        const option = document.createElement('option');
-                        option.value = f.id;
-                        option.textContent = f.name;
-                        select.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading films:', error);
-                    alert('Ошибка загрузки фильмов');
-                });
-        }
-
-        // Функции для добавления записей
-        window.addFilm = function() {
-            const name = document.getElementById('filmName').value;
-            const year = document.getElementById('filmYear').value;
-            const directorId = document.getElementById('filmDirector').value;
-
-            if (!name || !year || !directorId) {
-                alert('Заполните все поля');
-                return;
-            }
-
-            const filmData = {
-                name: name,
-                year: parseInt(year),
-                director_id: parseInt(directorId)
-            };
-
-            apiCall('/api/admin/films', 'POST', filmData)
-                .then(data => {
-                    if (data.success) {
-                        alert('Фильм успешно добавлен');
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при добавлении фильма: ' + error.message);
-                });
-        };
-
-        window.addCarrier = function() {
-            const filmId = document.getElementById('carrierFilm').value;
-            const type = document.getElementById('carrierType').value;
-            const condition = document.getElementById('carrierCondition').value;
-            const price = document.getElementById('carrierPrice').value;
-
-            if (!filmId || !type || !condition || !price) {
-                alert('Заполните все поля');
-                return;
-            }
-
-            const carrierData = {
-                film_id: parseInt(filmId),
-                type: type,
-                condition: condition,
-                price: parseFloat(price)
-            };
-
-            apiCall('/api/admin/carriers', 'POST', carrierData)
-                .then(data => {
-                    if (data.success) {
-                        alert('Носитель успешно добавлен');
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при добавлении носителя: ' + error.message);
-                });
-        };
-
-        window.addReader = function() {
-            const fio = document.getElementById('readerFio').value;
-            const phone = document.getElementById('readerPhone').value;
-
-            if (!fio) {
-                alert('Введите ФИО пользователя');
-                return;
-            }
-
-            const readerData = {
-                fio: fio,
-                phone: phone || '',
-                status: 'Активен'
-            };
-
-            apiCall('/api/admin/readers', 'POST', readerData)
-                .then(data => {
-                    if (data.success) {
-                        alert('Пользователь успешно добавлен');
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при добавлении пользователя: ' + error.message);
-                });
-        };
-
-        window.addGenre = function() {
-            const name = document.getElementById('genreName').value;
-
-            if (!name) {
-                alert('Введите название жанра');
-                return;
-            }
-
-            const genreData = {
-                name: name
-            };
-
-            apiCall('/api/admin/genres', 'POST', genreData)
-                .then(data => {
-                    if (data.success) {
-                        alert('Жанр успешно добавлен');
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при добавлении жанра: ' + error.message);
-                });
-        };
-
-        window.addDirector = function() {
-            const name = document.getElementById('directorName').value;
-
-            if (!name) {
-                alert('Введите ФИО режиссёра');
-                return;
-            }
-
-            const directorData = {
-                name: name
-            };
-
-            apiCall('/api/admin/directors', 'POST', directorData)
-                .then(data => {
-                    if (data.success) {
-                        alert('Режиссёр успешно добавлен');
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при добавлении режиссёра: ' + error.message);
-                });
-        };
-
-        // Синхронизация статусов
-        window.syncStatuses = function() {
-            if (confirm('Вы уверены, что хотите синхронизировать статусы носителей?')) {
-                apiCall('/api/admin/sync_statuses', 'POST')
-                    .then(data => {
-                        if (data.success) {
-                            alert(data.message);
-                            location.reload();
-                        } else {
-                            alert('Ошибка: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        alert('Ошибка при синхронизации: ' + error.message);
-                    });
-            }
-        };
-
-        // Обработчики для удаления
-        function setupDeleteHandlers() {
-            document.querySelectorAll('.delete-film-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const filmId = this.getAttribute('data-film-id');
-                    const filmName = this.closest('tr').querySelector('td:first-child strong').textContent;
-                    if (confirm(`Вы уверены, что хотите удалить фильм "${filmName}"?`)) {
-                        deleteFilm(filmId, this);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.delete-carrier-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const carrierId = this.getAttribute('data-carrier-id');
-                    const carrierName = this.closest('tr').querySelector('td:nth-child(2) strong').textContent;
-                    if (confirm(`Вы уверены, что хотите удалить носитель "${carrierName}"?`)) {
-                        deleteCarrier(carrierId, this);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.delete-issue-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const issueId = this.getAttribute('data-issue-id');
-                    if (confirm('Вы уверены, что хотите удалить эту выдачу? Носитель станет доступным.')) {
-                        deleteIssue(issueId, this);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.delete-reader-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const readerId = this.getAttribute('data-reader-id');
-                    const readerName = this.closest('tr').querySelector('td:nth-child(2) strong').textContent;
-                    if (confirm(`Вы уверены, что хотите удалить пользователя "${readerName}"?`)) {
-                        deleteReader(readerId, this);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.delete-genre-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const genreId = this.getAttribute('data-genre-id');
-                    const genreName = this.closest('tr').querySelector('td:nth-child(2) strong').textContent;
-                    if (confirm(`Вы уверены, что хотите удалить жанр "${genreName}"?`)) {
-                        deleteGenre(genreId, this);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.delete-director-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const directorId = this.getAttribute('data-director-id');
-                    const directorName = this.closest('tr').querySelector('td:nth-child(2) strong').textContent;
-                    if (confirm(`Вы уверены, что хотите удалить режиссёра "${directorName}"?`)) {
-                        deleteDirector(directorId, this);
-                    }
-                });
-            });
-        }
-
-        function deleteFilm(filmId, button) {
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-            
-            apiCall(`/api/admin/films/${filmId}`, 'DELETE')
-                .then(data => {
-                    if (data.success) {
-                        document.querySelector(`tr[data-film-id="${filmId}"]`).remove();
-                        alert('Фильм успешно удалён');
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                        button.disabled = false;
-                        button.textContent = 'Удалить';
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при удалении: ' + error.message);
-                    button.disabled = false;
-                    button.textContent = 'Удалить';
-                });
-        }
-
-        function deleteCarrier(carrierId, button) {
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-            
-            apiCall(`/api/admin/carriers/${carrierId}`, 'DELETE')
-                .then(data => {
-                    if (data.success) {
-                        document.querySelector(`tr[data-carrier-id="${carrierId}"]`).remove();
-                        alert('Носитель успешно удалён');
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                        button.disabled = false;
-                        button.textContent = 'Удалить';
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при удалении: ' + error.message);
-                    button.disabled = false;
-                    button.textContent = 'Удалить';
-                });
-        }
-
-        function deleteIssue(issueId, button) {
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-            
-            apiCall(`/api/admin/issues/${issueId}`, 'DELETE')
-                .then(data => {
-                    if (data.success) {
-                        document.querySelector(`tr[data-issue-id="${issueId}"]`).remove();
-                        alert('Выдача успешно удалена. Носитель снова доступен.');
-                        // Перезагружаем страницу, чтобы обновить статусы везде
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                        button.disabled = false;
-                        button.textContent = 'Удалить';
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при удалении: ' + error.message);
-                    button.disabled = false;
-                    button.textContent = 'Удалить';
-                });
-        }
-
-        function deleteReader(readerId, button) {
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-            
-            apiCall(`/api/admin/readers/${readerId}`, 'DELETE')
-                .then(data => {
-                    if (data.success) {
-                        document.querySelector(`tr[data-reader-id="${readerId}"]`).remove();
-                        alert('Пользователь успешно удалён');
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                        button.disabled = false;
-                        button.textContent = 'Удалить';
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при удалении: ' + error.message);
-                    button.disabled = false;
-                    button.textContent = 'Удалить';
-                });
-        }
-
-        function deleteGenre(genreId, button) {
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-            
-            apiCall(`/api/admin/genres/${genreId}`, 'DELETE')
-                .then(data => {
-                    if (data.success) {
-                        document.querySelector(`tr[data-genre-id="${genreId}"]`).remove();
-                        alert('Жанр успешно удалён');
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                        button.disabled = false;
-                        button.textContent = 'Удалить';
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при удалении: ' + error.message);
-                    button.disabled = false;
-                    button.textContent = 'Удалить';
-                });
-        }
-
-        function deleteDirector(directorId, button) {
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-            
-            apiCall(`/api/admin/directors/${directorId}`, 'DELETE')
-                .then(data => {
-                    if (data.success) {
-                        document.querySelector(`tr[data-director-id="${directorId}"]`).remove();
-                        alert('Режиссёр успешно удалён');
-                    } else {
-                        alert('Ошибка: ' + data.message);
-                        button.disabled = false;
-                        button.textContent = 'Удалить';
-                    }
-                })
-                .catch(error => {
-                    alert('Ошибка при удалении: ' + error.message);
-                    button.disabled = false;
-                    button.textContent = 'Удалить';
-                });
-        }
-
-        // Инициализация
-        loadFormData();
-        setupDeleteHandlers();
-    });
+    // Автоматическое скрытие alert через 5 секунд
+    setTimeout(() => {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
     </script>
 </body>
 </html>
