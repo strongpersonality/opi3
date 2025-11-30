@@ -4,7 +4,7 @@
     <title>Фильмотека — Пользователь</title>
     <meta charset="UTF-8">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
+    <link href="/static/styles.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-4">
@@ -16,28 +16,28 @@
                 <h5 class="mb-0">Ваши данные для взятия носителя</h5>
             </div>
             <div class="card-body">
-                <form id="userForm" class="row g-3">
+                <div class="row g-3">
                     <div class="col-md-3">
                         <label for="lastName" class="form-label">Фамилия *</label>
-                        <input type="text" class="form-control" id="lastName" required>
+                        <input type="text" class="form-control" id="lastName" name="last_name" required>
                     </div>
                     
                     <div class="col-md-3">
                         <label for="firstName" class="form-label">Имя *</label>
-                        <input type="text" class="form-control" id="firstName" required>
+                        <input type="text" class="form-control" id="firstName" name="first_name" required>
                     </div>
                     
                     <div class="col-md-3">
                         <label for="middleName" class="form-label">Отчество</label>
-                        <input type="text" class="form-control" id="middleName">
+                        <input type="text" class="form-control" id="middleName" name="middle_name">
                     </div>
                     
                     <div class="col-md-3">
                         <label for="phone" class="form-label">Номер телефона *</label>
-                        <input type="tel" class="form-control" id="phone" placeholder="+7 (999) 123-45-67" required>
+                        <input type="tel" class="form-control" id="phone" name="phone" placeholder="+7 (999) 123-45-67" required>
                         <div class="form-text">Формат: +7 (XXX) XXX-XX-XX</div>
                     </div>
-                </form>
+                </div>
                 <div class="mt-2">
                     <small class="text-muted">* - обязательные поля</small>
                 </div>
@@ -47,15 +47,17 @@
         <!-- Форма поиска -->
         <div class="card mb-4">
             <div class="card-body">
-                <form method="get" class="row g-3">
+                <form method="GET" action="/cgi-bin/user.py" class="row g-3">
+                    <input type="hidden" name="action" value="search">
+                    
                     <div class="col-md-4">
-                        <input type="text" name="title" class="form-control" placeholder="Название фильма" value="{{ request.args.get('title', '') }}">
+                        <input type="text" name="title" class="form-control" placeholder="Название фильма" value="{{ search_title }}">
                     </div>
                     <div class="col-md-3">
                         <select name="director" class="form-control">
                             <option value="">Все режиссёры</option>
                             {% for director in directors %}
-                            <option value="{{ director[1] }}" {% if request.args.get('director') == director[1] %}selected{% endif %}>
+                            <option value="{{ director[1] }}" {% if search_director == director[1] %}selected{% endif %}>
                                 {{ director[1] }}
                             </option>
                             {% endfor %}
@@ -65,7 +67,7 @@
                         <select name="genre" class="form-control">
                             <option value="">Все жанры</option>
                             {% for genre in genres %}
-                            <option value="{{ genre[1] }}" {% if request.args.get('genre') == genre[1] %}selected{% endif %}>
+                            <option value="{{ genre[1] }}" {% if search_genre == genre[1] %}selected{% endif %}>
                                 {{ genre[1] }}
                             </option>
                             {% endfor %}
@@ -77,6 +79,14 @@
                 </form>
             </div>
         </div>
+
+        <!-- Сообщения об ошибках/успехе -->
+        {% if message %}
+        <div class="alert alert-{{ message_type }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
 
         <!-- Таблица носителей -->
         <div class="card">
@@ -136,11 +146,13 @@
                                 </td>
                                 <td>
                                     {% if carrier.status == 'Доступен' %}
-                                        <button class="btn btn-success btn-sm take-btn" 
-                                                data-carrier-id="{{ carrier.id }}"
-                                                data-carrier-name="{{ carrier.localized_name }}">
-                                            Взять
-                                        </button>
+                                        <form method="POST" action="/cgi-bin/user_take.py" class="d-inline" onsubmit="return validateForm(this) && confirm('Взять {{ carrier.localized_name }}?')">
+                                            <input type="hidden" name="carrier_id" value="{{ carrier.id }}">
+                                            <input type="hidden" name="carrier_name" value="{{ carrier.localized_name }}">
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                Взять
+                                            </button>
+                                        </form>
                                     {% elif carrier.status == 'Забронирован' %}
                                         <span class="text-muted">Недоступно</span>
                                     {% else %}
@@ -160,123 +172,101 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Ссылка в админку -->
+        <div class="text-center mt-4">
+            <a href="/cgi-bin/admin.py" class="btn btn-outline-secondary">Панель администратора</a>
+        </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Обработка взятия носителя
-        document.querySelectorAll('.take-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const carrierId = this.getAttribute('data-carrier-id');
-                const carrierName = this.getAttribute('data-carrier-name');
-                
-                takeCarrier(carrierId, carrierName, this);
-            });
-        });
+    // Валидация формы перед отправкой
+    function validateForm(form) {
+        const lastName = document.getElementById('lastName').value.trim();
+        const firstName = document.getElementById('firstName').value.trim();
+        const phone = document.getElementById('phone').value.trim();
 
-        function takeCarrier(carrierId, carrierName, button) {
-            const lastName = document.getElementById('lastName').value.trim();
-            const firstName = document.getElementById('firstName').value.trim();
-            const middleName = document.getElementById('middleName').value.trim();
-            const phone = document.getElementById('phone').value.trim();
-
-            // Валидация
-            if (!lastName || !firstName || !phone) {
-                alert('Пожалуйста, заполните все обязательные поля (Фамилия, Имя, Телефон)');
-                return;
-            }
-
-            // Простая валидация телефона
-            if (!phone.match(/^(\+7|8)[\s\-]?\(?[0-9]{3}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$/)) {
-                alert('Пожалуйста, введите корректный номер телефона');
-                return;
-            }
-
-            if (!confirm(`Вы уверены, что хотите взять "${carrierName}"?`)) {
-                return;
-            }
-
-            // Показываем индикатор загрузки
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Загрузка...';
-            
-            const userData = {
-                last_name: lastName,
-                first_name: firstName,
-                middle_name: middleName,
-                phone: phone
-            };
-
-            fetch(`/api/user/take/${carrierId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(userData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    
-                    // Обновляем интерфейс
-                    button.textContent = 'Взято';
-                    button.classList.remove('btn-success');
-                    button.classList.add('btn-secondary');
-                    button.disabled = true;
-                    
-                    // Обновляем статус в таблице
-                    const row = button.closest('tr');
-                    const statusCell = row.querySelector('td:nth-child(8)');
-                    statusCell.innerHTML = '<span class="badge bg-success">Выдан</span>';
-                    
-                } else {
-                    alert('Ошибка: ' + data.message);
-                    button.disabled = false;
-                    button.textContent = 'Взять';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Произошла ошибка при выполнении запроса');
-                button.disabled = false;
-                button.textContent = 'Взять';
-            });
+        if (!lastName || !firstName || !phone) {
+            alert('Пожалуйста, заполните все обязательные поля (Фамилия, Имя, Телефон)');
+            return false;
         }
 
-        // Маска для телефона
-        document.getElementById('phone').addEventListener('input', function(e) {
-            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
-            if (!x) return;
-            
-            let formatted = '';
-            if (x[1]) formatted = '+' + x[1];
-            if (x[2]) formatted += ' (' + x[2];
-            if (x[3]) formatted += ') ' + x[3];
-            if (x[4]) formatted += '-' + x[4];
-            if (x[5]) formatted += '-' + x[5];
-            
-            e.target.value = formatted;
-        });
+        // Простая валидация телефона
+        if (!phone.match(/^(\+7|8)[\s\-]?\(?[0-9]{3}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$/)) {
+            alert('Пожалуйста, введите корректный номер телефона');
+            return false;
+        }
 
-        // Сохранение данных в localStorage
-        const formFields = ['lastName', 'firstName', 'middleName', 'phone'];
+        // Добавляем данные пользователя в форму
+        const lastNameInput = document.createElement('input');
+        lastNameInput.type = 'hidden';
+        lastNameInput.name = 'last_name';
+        lastNameInput.value = lastName;
+        form.appendChild(lastNameInput);
+
+        const firstNameInput = document.createElement('input');
+        firstNameInput.type = 'hidden';
+        firstNameInput.name = 'first_name';
+        firstNameInput.value = firstName;
+        form.appendChild(firstNameInput);
+
+        const middleNameInput = document.createElement('input');
+        middleNameInput.type = 'hidden';
+        middleNameInput.name = 'middle_name';
+        middleNameInput.value = document.getElementById('middleName').value.trim();
+        form.appendChild(middleNameInput);
+
+        const phoneInput = document.createElement('input');
+        phoneInput.type = 'hidden';
+        phoneInput.name = 'phone';
+        phoneInput.value = phone;
+        form.appendChild(phoneInput);
+
+        return true;
+    }
+
+    // Маска для телефона
+    document.getElementById('phone').addEventListener('input', function(e) {
+        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+        if (!x) return;
         
-        // Загрузка сохраненных данных
-        formFields.forEach(field => {
-            const savedValue = localStorage.getItem(`user_${field}`);
-            if (savedValue) {
-                document.getElementById(field).value = savedValue;
-            }
-        });
+        let formatted = '';
+        if (x[1]) formatted = '+' + x[1];
+        if (x[2]) formatted += ' (' + x[2];
+        if (x[3]) formatted += ') ' + x[3];
+        if (x[4]) formatted += '-' + x[4];
+        if (x[5]) formatted += '-' + x[5];
+        
+        e.target.value = formatted;
+    });
 
-        // Сохранение данных при изменении
-        formFields.forEach(field => {
-            document.getElementById(field).addEventListener('input', function() {
-                localStorage.setItem(`user_${field}`, this.value);
-            });
+    // Сохранение данных в localStorage
+    const formFields = ['lastName', 'firstName', 'middleName', 'phone'];
+    
+    // Загрузка сохраненных данных
+    formFields.forEach(field => {
+        const savedValue = localStorage.getItem(`user_${field}`);
+        if (savedValue) {
+            document.getElementById(field).value = savedValue;
+        }
+    });
+
+    // Сохранение данных при изменении
+    formFields.forEach(field => {
+        document.getElementById(field).addEventListener('input', function() {
+            localStorage.setItem(`user_${field}`, this.value);
         });
     });
+
+    // Автоматическое скрытие alert через 5 секунд
+    setTimeout(() => {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
     </script>
 </body>
 </html>
